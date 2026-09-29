@@ -28,7 +28,10 @@ export async function onRequest(context) {
     }
 
     // 调用 Workers AI 模型
-    const answer = await context.env.AI.run(
+    // 注意：@cf/zai-org/glm-4.7-flash 返回的是 OpenAI 兼容的 chat-completions
+    // 结构（choices[0].message.content），并非旧版 Workers AI 的 { response }。
+    // 以下做多形态兼容取值，适配不同网关返回。
+    const out = await context.env.AI.run(
       "@cf/zai-org/glm-4.7-flash",
       {
         messages: [
@@ -48,7 +51,14 @@ export async function onRequest(context) {
       }
     );
 
-    return Response.json({ answer: answer.response });
+    const text =
+      (out && out.choices && out.choices[0] &&
+        (out.choices[0].message?.content ?? out.choices[0].delta?.content ?? out.choices[0].text)) ??
+      out?.response ??
+      out?.result?.response ??
+      "";
+
+    return Response.json({ answer: String(text).trim() || "（模型未返回内容，请稍后再试）" });
   } catch (error) {
     return Response.json({ error: "AI 调用失败，请稍后再试。" }, { status: 500 });
   }
