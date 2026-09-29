@@ -57,3 +57,27 @@ I:\zhongyi\
 
 - Workers 免费额度可覆盖小流量场景；`glm-4.7-flash` 单价约 $0.0605/M 输入 token、$0.40/M 输出 token（见 Cloudflare 模型页）。
 - 域名约 ¥100/年左右；如需企业微信认证约 ¥300/年（账号归X老方所有）。
+
+## 七、FAQ：AI 助手只回「演示回复」/ 没有真实 AI 回复
+
+**症状**：对话框有界面，但发送后只返回「演示回复」或提示接口不可用，`/api/chat` 404。
+
+**原因**：生产仓库里缺少 `functions/` 目录——AI 请求没有服务端代码接收。AI binding 只是「连接通道」，必须由 Pages Function 实际调用 `context.env.AI.run()`。
+
+**修复（推送清单，逐项核对）**：
+
+1. 用 `I:\zhongyi` 整个目录替换 GitHub 仓库 `kenstella86/zhongyi` 根目录内容，**必须包含以下文件并一起提交**：
+   ```
+   functions/api/chat.js   # Pages Function：接收 /api/chat，调用 glm-4.7-flash
+   _routes.json            # 路由：{"version":1,"include":["/api/*"],"exclude":[]}
+   index.html              # 前端（已与 chat.js 配对：发 {question} 收 {answer}）
+   ```
+2. 前端与后端参数已配对（`{ question: 问题 }` → 返回 `{ answer: 回复 }`），**不要混用 `{message}/{reply}` 写法**，否则会不匹配。
+3. 提交并推送到 `main` 分支，Cloudflare Pages 自动重新部署（约 1–2 分钟）。
+4. 验证：浏览器打开部署站点 → 开发者工具 Network 里请求 `POST /api/chat`，若返回 `{"answer":"..."}` 即成功；若 404，说明 `functions/` 未进仓库。
+5. 本地测试 Pages Function（无需部署）：
+   ```bash
+   npx wrangler pages dev I:\zhongyi
+   ```
+   在 `http://localhost:8788` 打开站点即可联调 `/api/chat`（需本机有 Workers AI 凭据配置）。
+

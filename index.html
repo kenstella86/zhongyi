@@ -744,12 +744,21 @@ async function send(text) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question: q }),
     });
-    const data = await res.json();
+    let data = null;
+    try { data = await res.json(); } catch (_) { data = null; }
     clearTimeout(timer);
-    wait.textContent = (data && data.answer) ? data.answer : reply(q);
+    if (data && data.answer) {
+      wait.textContent = data.answer;
+    } else if (res.status === 404 || !data) {
+      // 后端接口缺失（典型原因：GitHub 仓库未包含 functions/ 目录）
+      wait.textContent = "（提示）AI 接口尚未部署：请确认仓库根目录已包含 functions/api/chat.js 与 _routes.json 并推送到 main 分支，Cloudflare Pages 重新部署后即可启用真实 AI。以下为演示回复：\n" + reply(q);
+    } else {
+      wait.textContent = "（提示）AI 服务返回异常：" + (data && data.error ? data.error : ("HTTP " + res.status)) + "。以下为演示回复：\n" + reply(q);
+    }
   } catch (e) {
     clearTimeout(timer);
-    wait.textContent = reply(q);
+    // 本地 file:// 预览或网络异常：请求无法发出
+    wait.textContent = "（提示）当前为本地预览或网络异常，无法连接 /api/chat；部署到 Cloudflare Pages 后即可启用真实 AI。以下为演示回复：\n" + reply(q);
   } finally {
     answered = true;
     busy = false;
