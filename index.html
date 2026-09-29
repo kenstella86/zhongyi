@@ -687,21 +687,7 @@ const input = $("#aiInput"), sendBtn = $("#aiSend"), closeBtn = $("#aiClose");
 const banner = $("#aiBanner");
 const avatarSrc = "portrait.png";
 
-banner.textContent = "本助手为X老学术思想的数字化分身，非X老本人；回复仅作健康科普参考，不构成诊疗建议。本地预览或接口未部署时，将显示演示回复。";
-
-const DEMO_QA = [
-  { keys: ["预约", "门诊", "面诊", "挂号"], reply: "（演示回复）预约X老门诊：目前以门诊现场挂号与老患者复诊预约为主。您可以通过页面「预约门诊」板块的联系方式或企业微信与诊室确认出诊时间，避免跑空。线上AI助手负责科普与随访引导，诊疗仍需在门诊完成。" },
-  { keys: ["睡眠", "失眠", "睡不着", "多梦"], reply: "（演示回复）睡眠问题成因多样，常见于心神不宁、气血失和或起居失调。日常可注意：①亥时前入睡，顺应自然节律；②睡前避免思虑过重与饮浓茶；③晚餐清淡、不过饱；④可常按揉神门、涌泉等穴位安神。若失眠持续较久、影响日间状态，请到门诊面诊，由X老辨证调理。" },
-  { keys: ["忌口", "服药", "吃药", "煎药", "中药"], reply: "（演示回复）服药忌口总体遵循「清淡、避生冷、免油腻、少辛辣」的原则：服中药期间通常忌生冷瓜果、油腻厚味、浓茶与酒；具体忌口以X老处方笺上的医嘱为准。煎药请遵医嘱：一般用冷水浸泡30分钟后武火煮沸、文火再煎20-30分钟；特殊药材（先煎、后下、另煎、烊化）请严格按方执行。不确定时，请咨询开方医生。" },
-  { keys: ["节气", "养生", "季节", "四季", "秋冬", "春夏"], reply: "（演示回复）中医讲「顺时而养」：春生夏长、秋收冬藏。春季宜疏肝理气、早卧早起；夏季养心、饮食清淡、防暑祛湿；秋季润肺、防燥、少辛增酸；冬季养肾、保暖避寒、早睡晚起。每个节气都是调摄身心的节点，X老的养生心得会结合节气持续更新，欢迎关注。" },
-  { keys: ["学术", "主张", "理论", "心得", "著作", "介绍"], reply: "（演示回复）X老主张「辨证论治、以人为本」，重视「治未病」与体质调理，倡导顺时养生、医乃仁术。其医案与心得正在整理成数字化学术库，相关著作与论文信息会陆续在本站「学术成就」与「理论心得」板块呈现。您也可以查看页面内容，了解X老的风采与经历。" },
-  { keys: ["体质", "测评", "自测"], reply: "（演示回复）体质测评是X老「治未病」体系的第一步：通过回答一系列生活习惯与身体状态问题，初步判断您是平和、气虚、阳虚、阴虚、痰湿、湿热、血瘀或气郁等何种体质倾向，再据此给出调养建议。体质测评功能即将上线，上线后可从本助手直接进入；日常养生疑问，也可以随时问我。" },
-];
-
-function reply(text) {
-  const hit = DEMO_QA.find((q) => q.keys.some((k) => text.includes(k)));
-  return hit ? hit.reply : "（演示回复）感谢您的提问。在接口不可用时，我只能给出通用示例回复。部署上线后，AI助手将结合X老的学术内容为您解答体质调理、节气养生、服药忌口、复诊随访等问题；涉及具体病情，请及时到门诊面诊。您可以先点击上方问题试试。";
-}
+banner.textContent = "本助手为X老学术思想的数字化分身，非X老本人；回复仅作健康科普参考，不构成诊疗建议。";
 
 function openChat() { panel.classList.add("open"); if (body.children.length <= 1) sendAssistant(null, true); }
 function closeChat() { panel.classList.remove("open"); }
@@ -734,10 +720,6 @@ async function send(text) {
   busy = true;
   sendBtn.disabled = true;
   const wait = addMsg("X老AI助手正在思考…", "ai");
-  let answered = false;
-  const timer = setTimeout(() => {
-    if (!answered) { wait.textContent = reply(q); answered = true; }
-  }, 10000);
   try {
     const res = await fetch("/api/chat", {
       method: "POST",
@@ -746,21 +728,14 @@ async function send(text) {
     });
     let data = null;
     try { data = await res.json(); } catch (_) { data = null; }
-    clearTimeout(timer);
     if (data && data.answer) {
       wait.textContent = data.answer;
-    } else if (res.status === 404 || !data) {
-      // 后端接口缺失（典型原因：GitHub 仓库未包含 functions/ 目录）
-      wait.textContent = "（提示）AI 接口尚未部署：请确认仓库根目录已包含 functions/api/chat.js 与 _routes.json 并推送到 main 分支，Cloudflare Pages 重新部署后即可启用真实 AI。以下为演示回复：\n" + reply(q);
     } else {
-      wait.textContent = "（提示）AI 服务返回异常：" + (data && data.error ? data.error : ("HTTP " + res.status)) + "。以下为演示回复：\n" + reply(q);
+      wait.textContent = "（抱歉，服务暂时繁忙，请稍后重试。）";
     }
   } catch (e) {
-    clearTimeout(timer);
-    // 本地 file:// 预览或网络异常：请求无法发出
-    wait.textContent = "（提示）当前为本地预览或网络异常，无法连接 /api/chat；部署到 Cloudflare Pages 后即可启用真实 AI。以下为演示回复：\n" + reply(q);
+    wait.textContent = "（抱歉，服务暂时不可用，请稍后重试。）";
   } finally {
-    answered = true;
     busy = false;
     sendBtn.disabled = false;
     input.focus();
@@ -786,4 +761,7 @@ $$("#aiChips button").forEach((btn) =>
 );
 </script>
 </body>
+<!-- Cloudflare Web Analytics -->
+<script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "68dfca2a1ca54afcb29cd9ec3610774f"}'></script>
+<!-- End Cloudflare Web Analytics -->
 </html>
